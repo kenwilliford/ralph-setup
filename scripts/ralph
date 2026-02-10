@@ -1,0 +1,63 @@
+#!/bin/bash
+# Ralph Loop Runner
+# Usage: ralph [prompt-file]
+# Default prompt file: .ralph/prompt.md
+#
+# Runs an autonomous loop: each iteration spawns a fresh Claude Code session
+# with the prompt piped in. The session does one step, commits, and exits.
+# The loop restarts it for the next step.
+#
+# Stop conditions:
+#   .ralph/COMPLETE - All work done (created by the agent)
+#   .ralph/WAITING  - Human verification required (created by the agent)
+#   Ctrl+C          - Manual stop
+
+set -e
+
+PROMPT_FILE="${1:-.ralph/prompt.md}"
+
+if [ ! -f "$PROMPT_FILE" ]; then
+  echo "Error: Prompt file not found: $PROMPT_FILE" >&2
+  echo "Run /ralph-setup first to create the spec" >&2
+  exit 1
+fi
+
+if [ -f .ralph/COMPLETE ]; then
+  echo "Warning: .ralph/COMPLETE exists. Remove it to restart the loop." >&2
+  echo "  rm .ralph/COMPLETE" >&2
+  exit 1
+fi
+
+if [ -f .ralph/WAITING ]; then
+  echo "Warning: .ralph/WAITING exists. Human action required:" >&2
+  cat .ralph/WAITING >&2
+  echo "" >&2
+  echo "Remove it to resume: rm .ralph/WAITING" >&2
+  exit 1
+fi
+
+echo "========================================"
+echo "RALPH LOOP"
+echo "========================================"
+echo "Prompt:   $PROMPT_FILE"
+echo "Project:  $(pwd)"
+echo "Stop:     Ctrl+C, .ralph/COMPLETE, or .ralph/WAITING"
+echo ""
+echo "WARNING: Running with --dangerously-skip-permissions"
+echo "         Ensure you understand the security implications."
+echo "========================================"
+echo ""
+
+RALPH_LOOP=1 bash -c 'while [ ! -f .ralph/COMPLETE ] && [ ! -f .ralph/WAITING ]; do cat '"$PROMPT_FILE"' | claude --dangerously-skip-permissions; sleep 2; done'
+
+echo ""
+echo "========================================"
+if [ -f .ralph/COMPLETE ]; then
+  echo "Ralph loop complete."
+elif [ -f .ralph/WAITING ]; then
+  echo "Ralph loop paused - human action required:"
+  cat .ralph/WAITING
+else
+  echo "Ralph loop stopped."
+fi
+echo "========================================"

@@ -1,0 +1,12 @@
+{
+  "Stop": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": ".claude/hooks/exit-after-task.sh"
+        }
+      ]
+    }
+  ]
+}

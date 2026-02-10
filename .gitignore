@@ -1,0 +1,17 @@
+# Ralph loop state (project-specific, not part of this repo)
+.ralph/
+.beads/
+
+# Claude Code local state
+.claude/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
