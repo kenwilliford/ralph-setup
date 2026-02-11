@@ -1,6 +1,6 @@
 # ralph-setup
 
-Autonomous development loops for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Write a spec, decompose it into tracked tasks, then let Claude work through it step-by-step — each iteration in a fresh context window. Based on [Geoffrey Huntley's ralph loop methodology](https://ghuntley.com/specs).
+Autonomous development loops for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Write a spec, decompose it into tracked tasks, then let Claude work through it step-by-step — each iteration in a fresh context window. Based on [Geoffrey Huntley's ralph loop methodology](https://ghuntley.com/ralph/).
 
 ## How It Works
 
