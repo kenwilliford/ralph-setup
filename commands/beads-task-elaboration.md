@@ -2,6 +2,7 @@
 name: beads-task-elaboration
 description: "Elaborate ideas into self-documenting beads with full context for future sessions"
 argument-hint: [epic:BEADS-XXX | conversation | file-path | "clipboard"]
+author: Mike Williamson (@mikez93)
 ---
 
 # Beads Task Elaboration

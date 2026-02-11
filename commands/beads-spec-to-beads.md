@@ -2,6 +2,7 @@
 name: beads-spec-to-beads
 description: "Convert specs into Beads epics/tasks with full PRD detail preserved"
 argument-hint: [spec-file-path | spec-directory | leave blank to use current context]
+author: Mike Williamson (@mikez93)
 ---
 
 # Spec-to-Beads Conversion

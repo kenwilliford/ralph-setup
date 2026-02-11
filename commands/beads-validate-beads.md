@@ -2,6 +2,7 @@
 name: beads-validate-beads
 description: "Validate and optimize beads before implementation - operate in plan space"
 argument-hint: [epic:BEADS-XXX | "all" | empty for current plan]
+author: Mike Williamson (@mikez93)
 ---
 
 # Validate Beads

@@ -6,17 +6,17 @@ Autonomous development loops for [Claude Code](https://docs.anthropic.com/en/doc
 
 ```
 You (interactive)                    Claude (autonomous)
-┌──────────────┐                    ┌──────────────────────┐
+┌──────────────┐                    ┌───────────────────────┐
 │ /ralph-setup │                    │    bash while loop    │
 │              │                    │                       │
-│ 1. Interview │──── spec.md ──────>│ Session 1: Step 1.1  │
+│ 1. Interview │──── spec.md ──────>│ Session 1: Step 1.1   │
 │ 2. Write spec│                    │   commit + exit       │
 │ 3. Review    │                    │                       │
-│ 4. Beads     │                    │ Session 2: Step 1.2  │
+│ 4. Beads     │                    │ Session 2: Step 1.2   │
 │ 5. Launch    │                    │   commit + exit       │
 └──────────────┘                    │                       │
                                     │ Session N: COMPLETE   │
-                                    └──────────────────────┘
+                                    └───────────────────────┘
 ```
 
 Each loop iteration spawns a **fresh Claude session** — no context compaction, no accumulated confusion. State persists in git commits and spec files.
@@ -145,6 +145,8 @@ See [docs/theory.md](docs/theory.md) for isolation strategies.
 ## Attribution
 
 This implementation is inspired by [Geoffrey Huntley's ralph loop methodology](https://ghuntley.com/specs). The core ideas — fresh context per iteration, parsimonious specs, external bash loops — come from his talks and demonstrations.
+
+The beads integration commands (`/beads-spec-to-beads`, `/beads-task-elaboration`, `/beads-validate-beads`) were contributed by [Mike Williamson (@mikez93)](https://github.com/mikez93).
 
 ## License
 
