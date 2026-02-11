@@ -20,6 +20,10 @@ Getting started with ralph-setup, from installation through your first autonomou
    sudo pacman -S jq
    ```
 4. **git** — Version control
+5. **External reviewer CLI** (optional, for peer review) — one of:
+   - [Codex CLI](https://github.com/openai/codex) — `npm install -g @openai/codex`
+   - [Gemini CLI](https://github.com/google/gemini-cli) — `npm install -g @google/gemini-cli@latest`
+   - Or use Claude CLI as a self-review fallback
 
 ## Installation
 
@@ -51,6 +55,7 @@ claude
 The wizard will:
 - **Interview you** about what you want to build or fix
 - **Write a spec** with numbered steps and acceptance criteria
+- **Peer review** the spec with an external model (optional)
 - **Create beads tasks** for progress tracking
 - **Validate everything** before declaring ready
 - **Install the stop hook** in your project
@@ -100,6 +105,9 @@ If your task needs investigation, explores the codebase first.
 
 ### Phase 4: Write Spec
 Creates `.ralph/prompt.md`, `.ralph/readme.md`, and `.ralph/spec.md` within a strict token budget.
+
+### Phase 4.5: Peer Review (optional)
+Runs a multi-round peer review of the spec with an external model (Codex, Gemini, or Claude CLI). The reviewer critically evaluates the spec, Claude responds to findings and revises. Runs autonomously until the reviewer issues GO or hits the round cap (4 rounds). The revised spec replaces `spec.md` before beads integration. Requires an external CLI (e.g., `codex`, `gemini`) for cross-model review.
 
 ### Phase 5: Beads Integration
 Creates a beads epic with tasks matching each spec step. Adds detailed acceptance criteria. Validates everything.

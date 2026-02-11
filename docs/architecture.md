@@ -137,6 +137,11 @@ The sync verification script (`verify-beads-sync.sh`) blocks completion until bo
       │
       ├── Interview user
       ├── Write spec.md, readme.md, prompt.md
+      ├── Peer review spec (optional)
+      │     ├── Spawn subagent for multi-round review
+      │     ├── External reviewer (codex/gemini) ↔ Claude iterate
+      │     ├── Produces .ralph/reviews/ audit trail
+      │     └── Revised spec replaces spec.md
       ├── Create beads epic + tasks (/beads-spec-to-beads)
       ├── Elaborate tasks (/beads-task-elaboration)
       ├── Validate (/beads-validate-beads)

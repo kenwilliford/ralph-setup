@@ -11,8 +11,8 @@ You (interactive)                    Claude (autonomous)
 │              │                    │                       │
 │ 1. Interview │──── spec.md ──────>│ Session 1: Step 1.1  │
 │ 2. Write spec│                    │   commit + exit       │
-│ 3. Beads     │                    │                       │
-│ 4. Validate  │                    │ Session 2: Step 1.2  │
+│ 3. Review    │                    │                       │
+│ 4. Beads     │                    │ Session 2: Step 1.2  │
 │ 5. Launch    │                    │   commit + exit       │
 └──────────────┘                    │                       │
                                     │ Session N: COMPLETE   │
@@ -42,7 +42,7 @@ claude
 # Type: /ralph-setup
 ```
 
-The wizard interviews you, writes a spec, creates beads tasks, and gives you the launch command.
+The wizard interviews you, writes a spec, optionally runs peer review with an external model, creates beads tasks, and gives you the launch command.
 
 ## What Gets Installed
 
@@ -105,6 +105,11 @@ ralph-setup/
 │   ├── readme.md          # Lookup table template
 │   ├── check-context.sh   # Context monitor
 │   └── stop-hook.sh       # Stop hook template
+├── references/
+│   └── peer-review/       # Peer review templates
+│       ├── REVIEW_TEMPLATE.md
+│       ├── RESPONSE_TEMPLATE.md
+│       └── CODEX_INSTRUCTIONS.md
 ├── scripts/
 │   ├── ralph              # Loop runner wrapper
 │   ├── validate-ac.sh     # Acceptance criteria validator

@@ -306,6 +306,199 @@ Place doc phase after implementation but before final review.
 
 ---
 
+## Phase 4.5: PEER REVIEW (Optional)
+
+After writing the spec, optionally run a multi-round peer review with an external model before decomposing into beads. Reviewing at spec level (not beads level) keeps the cost of change minimal — it's just markdown.
+
+Ask using AskUserQuestion with header "Peer Review":
+
+"Would you like to run peer review on this spec before beads integration?"
+
+Options:
+- **Yes, with Codex (Recommended)** — "Cross-model review using OpenAI reasoning model"
+- **Yes, choose reviewer** — "Detect available reviewer CLIs and choose"
+- **Skip** — "Proceed directly to beads integration"
+
+If "Skip", proceed to Phase 5.
+
+If "Yes, choose reviewer":
+1. Detect available CLIs (run in parallel):
+   ```bash
+   which codex 2>/dev/null && echo "codex available"
+   which gemini 2>/dev/null && echo "gemini available"
+   which claude 2>/dev/null && echo "claude available"
+   ```
+2. Present available options using AskUserQuestion with header "Reviewer"
+3. If Gemini selected, ask model preference (`gemini-2.5-pro` recommended)
+4. If no external CLIs found, offer Claude self-review with clear labeling
+
+### Determine Reviewer CLI Command
+
+Based on selection, the reviewer invocation is:
+- **Codex**: `timeout 300 codex exec --full-auto - < "$PROMPT_FILE"`
+- **Gemini**: `timeout 300 gemini -o text --yolo -m <model> < "$PROMPT_FILE"`
+- **Claude (self-review)**: `timeout 300 claude -p --tools "" < "$PROMPT_FILE"`
+
+### Run the Review
+
+1. Create reviews directory: `mkdir -p .ralph/reviews`
+
+2. Locate the ralph-setup install directory and read the peer review templates:
+   ```bash
+   RALPH_SETUP_DIR=$(dirname "$(dirname "$(readlink -f ~/.claude/commands/ralph-setup.md)")")
+   ```
+   Read these files:
+   - `$RALPH_SETUP_DIR/references/peer-review/REVIEW_TEMPLATE.md`
+   - `$RALPH_SETUP_DIR/references/peer-review/RESPONSE_TEMPLATE.md`
+   - `$RALPH_SETUP_DIR/references/peer-review/CODEX_INSTRUCTIONS.md`
+
+3. Read `.ralph/spec.md` content.
+
+4. Spawn a **general-purpose subagent** via the Task tool with the following prompt. Include the template contents and spec content inline in the prompt (the subagent cannot access the ralph-setup repo templates directly):
+
+   ```
+   You are running an autonomous peer review on a spec document. Your task is to
+   coordinate a multi-round review between an external reviewer CLI and yourself
+   (as author), running until the reviewer issues GO or you hit the round cap.
+
+   ## Configuration
+   - Reviewer CLI command: <REVIEWER_COMMAND from above>
+   - Round cap: 4
+   - Output directory: .ralph/reviews/
+   - Mode: auto-go (no human interaction — run to convergence)
+
+   ## Spec Content
+   <SPEC_CONTENT from .ralph/spec.md>
+
+   ## Review Template
+   <REVIEW_TEMPLATE content>
+
+   ## Response Template
+   <RESPONSE_TEMPLATE content>
+
+   ## Reviewer Instructions
+   <CODEX_INSTRUCTIONS content>
+
+   ## Process
+
+   For each round (starting at round 1):
+
+   ### A. Construct Reviewer Prompt
+
+   For Round 1, construct:
+   ```
+   You are a scientific peer reviewer. Your task is to critically evaluate the
+   plan document below and write a structured review.
+
+   Read the plan carefully, then write your review following the template format
+   at the end. Output your review directly — nothing else.
+
+   Be rigorous, specific, and constructive. Every concern must include a
+   concrete recommendation. Acknowledge strengths as well as problems. Include
+   a GO/NO-GO assessment.
+
+   ## Plan Document
+
+   {SPEC_CONTENT}
+
+   ## Review Format
+
+   {REVIEW_TEMPLATE_CONTENT}
+   ```
+
+   For Round 2+, construct:
+   ```
+   You are a scientific peer reviewer conducting a follow-up review round.
+
+   In prior rounds, you reviewed the plan and raised concerns. The author has
+   responded and described revisions. Your task is to:
+
+   1. Assess whether prior concerns were adequately addressed
+   2. Identify any new issues introduced by revisions
+   3. Evaluate residual risk
+   4. Provide a GO/NO-GO assessment
+
+   Output your review directly — nothing else.
+
+   ## Original Plan
+
+   {SPEC_CONTENT}
+
+   ## Prior Review and Response Artifacts
+
+   {ALL_PRIOR_ARTIFACTS}
+
+   ## Review Format
+
+   {REVIEW_TEMPLATE_CONTENT}
+
+   In addition to the standard review sections, include a "Prior Concern
+   Resolution" table at the top of your findings:
+
+   | Finding | Status | Notes |
+   |---------|--------|-------|
+   | F1 | Resolved / Partially Resolved / Unresolved | [Brief note] |
+   ```
+
+   ### B. Invoke Reviewer
+
+   Write the prompt to a temp file, pipe to the reviewer CLI:
+   ```bash
+   PROMPT_FILE=$(mktemp /tmp/peer-review-XXXXXX.md)
+   cat > "$PROMPT_FILE" <<'PROMPT_EOF'
+   <constructed prompt>
+   PROMPT_EOF
+   <REVIEWER_CLI_COMMAND> < "$PROMPT_FILE"
+   rm -f "$PROMPT_FILE"
+   ```
+
+   If the reviewer CLI fails or times out, report the error and stop.
+   Do NOT fall back to self-review silently.
+
+   ### C. Process Review
+
+   1. Save reviewer output as `.ralph/reviews/spec-review.md` (Round 1)
+      or `.ralph/reviews/spec-review<N>.md` (Round N)
+   2. Analyze each finding
+   3. Write your response as `.ralph/reviews/spec-review-response.md` (Round 1)
+      or `.ralph/reviews/spec-review<N>-response.md` (Round N)
+   4. Use the Response Template format — every finding needs a disposition
+
+   IMPORTANT: Do NOT modify the original spec during review rounds. All
+   revisions are described in response documents only.
+
+   ### D. Check Convergence
+
+   - If reviewer issued GO or CONDITIONAL GO → proceed to finalization
+   - If reviewer issued NO-GO and rounds remain → continue to next round
+   - If reviewer issued NO-GO and round cap reached → proceed to finalization
+
+   ## Finalization
+
+   After convergence (or cap reached):
+
+   1. Start from the original spec content
+   2. Walk through every response document in order
+   3. Apply all revisions with disposition Accepted or Partially Accepted
+   4. Skip revisions with disposition Acknowledged or Contested
+   5. Write the result as `.ralph/reviews/spec-revised.md`
+   6. The revised spec should read as a clean, standalone document
+
+   Report back with: round count, final assessment, and path to spec-revised.md.
+   ```
+
+5. After the subagent completes, read `.ralph/reviews/spec-revised.md`.
+
+6. Swap the spec:
+   ```bash
+   cp .ralph/spec.md .ralph/spec-original.md
+   cp .ralph/reviews/spec-revised.md .ralph/spec.md
+   ```
+
+7. Inform user: "Spec updated with peer review revisions. Original preserved at `.ralph/spec-original.md`. Review artifacts in `.ralph/reviews/`."
+
+---
+
 ## Phase 5: BEADS INTEGRATION
 
 Create beads tasks from the spec for reliable progress tracking and false-complete prevention.
