@@ -316,7 +316,7 @@ echo "Created review task: $TASK_REVIEW"
 
 ```bash
 # Check the epic has children attached
-CHILD_COUNT=$(br show $EPIC_ID --json | jq '.children | length')
+CHILD_COUNT=$(br dep list $EPIC_ID --direction up --json | jq 'length')
 echo "Epic has $CHILD_COUNT children"
 
 if [ "$CHILD_COUNT" -eq 0 ]; then
@@ -346,7 +346,7 @@ Epic: Feature X (abc123)
 
 ```bash
 # Find any tasks without parents (potential orphans)
-br list --status=open --json | jq '[.[] | select(.parent == null and .type == "task")] | .[] | {id, title}'
+br list --status=open --json | jq '[.issues[] | select(.issue_type == "task")] | .[] | {id, title}'
 ```
 
 If this returns tasks that should be under the epic, fix them:

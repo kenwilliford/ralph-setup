@@ -33,10 +33,10 @@ Run these checks programmatically before manual review.
 # If epic ID provided
 EPIC_ID="BEADS-123"
 br show $EPIC_ID
-br list --parent=$EPIC_ID --json
+br dep list $EPIC_ID --direction up --json
 
 # If validating all open beads
-br list --status=open --json
+br list --status=open --json  # returns {issues: [...], total, ...}
 ```
 
 ### 1.2 Dependency Validation
@@ -49,14 +49,14 @@ br dep tree $EPIC_ID
 br dep cycles
 
 # Find orphaned tasks (tasks without parents that should have them)
-br list --status=open --json | jq '[.[] | select(.parent == null and .type == "task")] | length'
+br list --status=open --json | jq '[.issues[] | select(.issue_type == "task")] | length'
 ```
 
 ### 1.3 Structural Completeness
 
 ```bash
 # Count children under epic
-CHILD_COUNT=$(br show $EPIC_ID --json | jq '.children | length')
+CHILD_COUNT=$(br dep list $EPIC_ID --direction up --json | jq 'length')
 echo "Epic has $CHILD_COUNT children"
 
 # Verify no empty epics
@@ -88,12 +88,12 @@ These metrics indicate elaboration quality. They are **guidelines, not strict re
 
 ```bash
 # Check description lengths for all tasks
-TASKS=$(br list --parent=$EPIC_ID --json | jq -r '.[].id')
+TASKS=$(br dep list $EPIC_ID --direction up --json | jq -r '.[].issue_id')
 
 echo "Description Length Analysis:"
 for TASK in $TASKS; do
-  DESC_LEN=$(br show $TASK --json | jq '.description | length')
-  TITLE=$(br show $TASK --json | jq -r '.title')
+  DESC_LEN=$(br show $TASK --json | jq '.[0].description | length')
+  TITLE=$(br show $TASK --json | jq -r '.[0].title')
 
   if [ "$DESC_LEN" -lt 200 ]; then
     echo "WARN $TASK: $TITLE - $DESC_LEN chars (consider elaborating)"
@@ -110,9 +110,9 @@ done
 ```bash
 # Count acceptance criteria (checkbox items) in descriptions
 for TASK in $TASKS; do
-  DESC=$(br show $TASK --json | jq -r '.description')
+  DESC=$(br show $TASK --json | jq -r '.[0].description')
   CRITERIA_COUNT=$(echo "$DESC" | grep -c '\- \[ \]' || echo "0")
-  TITLE=$(br show $TASK --json | jq -r '.title')
+  TITLE=$(br show $TASK --json | jq -r '.[0].title')
 
   if [ "$CRITERIA_COUNT" -lt 1 ]; then
     echo "WARN $TASK: $TITLE - No acceptance criteria found"

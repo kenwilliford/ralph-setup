@@ -123,7 +123,7 @@ Use this when elaborating existing tasks created by `/beads-spec-to-beads`.
 EPIC_ID="BEADS-123"  # Replace with actual ID from epic:BEADS-123
 
 # List all tasks under the epic
-br list --parent=$EPIC_ID --json | jq '.[] | {id, title, description}'
+br dep list $EPIC_ID --direction up --json | jq '.[] | {issue_id, title}'
 
 # Or get a quick overview
 br show $EPIC_ID
@@ -134,7 +134,7 @@ br show $EPIC_ID
 For each task, check what detail already exists:
 
 ```bash
-br show $TASK_ID --json | jq '{title, description}'
+br show $TASK_ID --json | jq '.[0] | {title, description}'
 ```
 
 ### 3. Elaborate Each Task Systematically
@@ -183,11 +183,11 @@ Process all tasks under an epic:
 EPIC_ID="BEADS-123"
 
 # Get all task IDs
-TASKS=$(br list --parent=$EPIC_ID --json | jq -r '.[].id')
+TASKS=$(br dep list $EPIC_ID --direction up --json | jq -r '.[].issue_id')
 
 echo "Tasks to elaborate:"
 for TASK in $TASKS; do
-  TITLE=$(br show $TASK --json | jq -r '.title')
+  TITLE=$(br show $TASK --json | jq -r '.[0].title')
   echo "  - $TASK: $TITLE"
 done
 
@@ -201,8 +201,8 @@ After elaborating all tasks:
 ```bash
 # Check each task has substantial description
 for TASK in $TASKS; do
-  DESC_LEN=$(br show $TASK --json | jq '.description | length')
-  TITLE=$(br show $TASK --json | jq -r '.title')
+  DESC_LEN=$(br show $TASK --json | jq '.[0].description | length')
+  TITLE=$(br show $TASK --json | jq -r '.[0].title')
   echo "$TASK: $TITLE - $DESC_LEN chars"
 done
 ```

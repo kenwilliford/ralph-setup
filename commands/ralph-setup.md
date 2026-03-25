@@ -1,11 +1,16 @@
 ---
 name: ralph-setup
 description: "Set up for a ralph loop - archive prior work, interview, write spec, validate, confirm readiness"
+argument-hint: "[--beads]"
 ---
 
 # Ralph Loop Setup
 
 You are setting up for an autonomous ralph loop. Follow this cycle exactly.
+
+## Arguments
+
+- `--beads`: Enable beads integration for dual-tracking (spec checkboxes + beads tasks). Requires `br` CLI installed. Off by default — acceptance criteria live directly in spec.md.
 
 ## Context Awareness
 
@@ -119,13 +124,73 @@ If research is needed:
 Create these files. **Token budget: 5000 tokens total** for core context.
 
 Budget allocation:
-- prompt.md: ~450 tokens (fixed overhead, includes beads workflow)
+- prompt.md: ~500 tokens (fixed overhead)
 - readme.md: ~550 tokens (index overhead)
-- **spec.md: ~4000 tokens available** (5000 - 450 - 550)
-
-**Key insight:** Acceptance criteria live in beads tasks, NOT in spec.md. This keeps spec minimal while still having rigorous verification criteria available on-demand via `br show`.
+- **spec.md: ~3950 tokens available** (5000 - 500 - 550)
 
 **`.ralph/prompt.md`** (~500 tokens):
+```markdown
+# FIRST: Check stop conditions - exit immediately if present
+if [ -f .ralph/WAITING ]; then cat .ralph/WAITING; exit 0; fi
+if [ -f .ralph/COMPLETE ]; then echo "Already complete"; exit 0; fi
+
+# Record start time if not already set
+if [ ! -f .ralph/started.txt ]; then date -Iseconds > .ralph/started.txt; fi
+
+study .ralph/readme.md
+study .ralph/spec.md
+
+═══════════════════════════════════════════════════════════════════
+  DO EXACTLY ONE STEP, THEN COMMIT AND EXIT. NOT TWO. NOT THREE.
+  The outer loop will restart you for the next step.
+═══════════════════════════════════════════════════════════════════
+
+Pick the FIRST incomplete step. Do that ONE step. Then commit, push, and EXIT.
+
+If ALL spec checkboxes complete:
+  date -Iseconds > .ralph/completed.txt
+  .ralph/report.sh > .ralph/final-report.txt
+  Create .ralph/COMPLETE, commit, push, exit.
+
+═══════════════════════════════════════════════════════════════════
+MANDATORY WORKFLOW FOR EACH STEP (ALL steps required, no skipping):
+═══════════════════════════════════════════════════════════════════
+  1. READ STEP: Read the spec step fully. Understand acceptance criteria.
+  2. DO THE WORK: Implement the step
+  3. VERIFY: Check EACH acceptance criterion from the spec
+     └─ Show specific evidence (command output, file contents)
+  4. MARK SPEC: Change [ ] → [x] in spec.md
+  5. LOG EVIDENCE: Add to progress log in spec.md
+  6. COMMIT AND EXIT: `git add -A && git commit`, `git push`, then EXIT.
+     └─ Do NOT start the next step. The outer loop restarts you.
+
+FALSE COMPLETE PREVENTION:
+  - NEVER mark done without verifying EACH criterion
+  - Show specific evidence (command output, not "it works")
+  - If manual verification needed, create WAITING file instead
+
+EVIDENCE FORMAT (for progress log - pick applicable types):
+  - File created: `ls -la path/file` output
+  - Compiles: `tsc --noEmit` success
+  - Test passes: actual test output showing pass
+  - Grep finds: `grep -n 'pattern' file` showing match
+  - Export exists: `grep 'export' file | head -3`
+
+REVIEW STEPS (.R): Trigger autonomous code review:
+  - Re-read implementation code with fresh eyes
+  - Look for bugs, edge cases, security issues
+  - Verify tests actually test the right things
+  - Check implementation matches spec INTENT not just syntax
+
+COMMITS: Exactly one commit per session, then push and EXIT immediately.
+Format: "<step>: <what changed>"
+Do NOT start another step after committing.
+
+CONTEXT: At ≥60%, checkpoint, commit, push, and EXIT.
+```
+
+**If `--beads` is set**, use this prompt.md instead (adds beads workflow to each step):
+
 ```markdown
 # FIRST: Check stop conditions - exit immediately if present
 if [ -f .ralph/WAITING ]; then cat .ralph/WAITING; exit 0; fi
@@ -166,7 +231,7 @@ MANDATORY WORKFLOW FOR EACH STEP (ALL steps required, no skipping):
   4. VERIFY: Check EACH acceptance criterion from br show output
      └─ Show specific evidence (command output, file contents)
   5. MARK SPEC: Change [ ] → [x] in spec.md
-  6. MARK BEADS: Run `br task complete TASK-xyz` (REQUIRED - do NOT skip!)
+  6. MARK BEADS: Run `br close TASK-xyz` (REQUIRED - do NOT skip!)
      └─ If you skip this, sync check will FAIL at completion
   7. LOG EVIDENCE: Add to progress log in spec.md
   8. COMMIT AND EXIT: `git add -A && git commit`, `git push`, then EXIT.
@@ -174,7 +239,7 @@ MANDATORY WORKFLOW FOR EACH STEP (ALL steps required, no skipping):
 
 ⚠️  BEADS COMPLETION IS MANDATORY - NOT OPTIONAL  ⚠️
 The final sync check WILL FAIL if you mark spec checkboxes without
-running `br task complete`. You MUST do both for every step.
+running `br close`. You MUST do both for every step.
 
 FALSE COMPLETE PREVENTION:
   - ALWAYS run `br show` BEFORE starting work - criteria live there
@@ -207,44 +272,26 @@ CONTEXT: At ≥60%, checkpoint, commit, push, and EXIT.
 - "When to read" triggers for each doc
 - Branch name for this loop
 
-**`.ralph/spec.md`** (use remaining budget, target <4000 tokens):
+**`.ralph/spec.md`** (use remaining budget, target <3950 tokens):
 - Phases with numbered items (1.1, 1.2, 1.R for review)
 - Progress Log table: session | item | result (1 line each!)
 - Stuck Flags table: item | tried | failed because | try next
 - "Done When" section with EXACT test scenarios from interview
 
-**CRITICAL: Spec is Index, Beads Hold Detail**
+**Spec Step Pattern:**
+```markdown
+- [ ] **N.X** Action description
+  - AC: specific, testable acceptance criterion
+  - AC: another criterion with verification command
+  - Evidence: (filled in after completion)
+```
 
-Spec.md stays MINIMAL to preserve context budget. Detailed acceptance criteria live in beads tasks.
-
-**Spec Step Pattern (REQUIRED format - ~80 chars each):**
+**If `--beads` is set:** Spec steps use minimal format with task ID references instead of inline AC:
 ```markdown
 - [ ] **N.X** Action description [TASK-xyz]
   - Evidence: (filled in after completion)
 ```
-
-**⚠️ The `[TASK-xyz]` inline reference is MANDATORY ⚠️**
-
-Every spec step MUST have a bracketed task ID. This is NOT optional because:
-1. Workers need the ID to run `br show TASK-xyz` for acceptance criteria
-2. Workers need the ID to run `br task complete TASK-xyz` after completion
-3. The sync verification script checks that all beads tasks are complete
-4. Without IDs, the Phase 12 workflow gap WILL recur
-
-The `[TASK-xyz]` reference tells the session to run `br show TASK-xyz` to get:
-- Background and context
-- Detailed acceptance criteria
-- Verification commands
-
-**After beads-spec-to-beads runs, UPDATE spec.md to add the task IDs inline.**
-This is done in Phase 5.1 - do not skip this step.
-
-**Where Information Lives:**
-| What | Where | When Read |
-|------|-------|-----------|
-| Step list (index) | spec.md | Every session (in context) |
-| Acceptance criteria | beads task | On-demand via `br show` |
-| Completion evidence | spec.md progress log | After step done |
+Acceptance criteria live in beads tasks (fetched via `br show TASK-xyz`). After beads integration (Phase 5), UPDATE spec.md to add the `[TASK-xyz]` references inline.
 
 **MANDATORY Review Steps (X.R):**
 
@@ -259,29 +306,27 @@ Review steps trigger autonomous code review looking for:
 
 ```markdown
 ## Phase 2: Implement Feature
-- [ ] **2.1** Create the component [TASK-abc]
-- [ ] **2.2** Add validation logic [TASK-def]
-- [ ] **2.3** Wire to existing system [TASK-ghi]
-- [ ] **2.R** Review: code review + verify tests pass [TASK-jkl]  ← MANDATORY
+- [ ] **2.1** Create the component
+  - AC: component file exists at expected path
+  - AC: exports required interface
+- [ ] **2.2** Add validation logic
+  - AC: rejects invalid input with specific error
+  - AC: accepts valid input without error
+- [ ] **2.3** Wire to existing system
+  - AC: integration test passes
+- [ ] **2.R** Review: code review + verify tests pass  ← MANDATORY
+  - AC: `tsc --noEmit` succeeds
+  - AC: `npm test` passes
+  - AC: no obvious bugs found during code review
 ```
 
-The beads task for X.R steps should include:
-```markdown
-## Acceptance Criteria
-- [ ] All Phase X implementation steps are marked complete
-- [ ] Code compiles without errors: `tsc --noEmit`
-- [ ] Tests pass: `npm test` (or project-specific command)
-- [ ] No obvious bugs found during code review
-- [ ] Implementation matches spec intent (not just "runs without error")
-```
-
-**Good vs Bad Acceptance Criteria (in beads, not spec):**
+**Good vs Bad Acceptance Criteria:**
 
 BAD (vague):
 - "It works"
 - "Tests pass"
 
-GOOD (in beads task description):
+GOOD (specific, testable):
 - "`npm test -- --grep 'validation'` shows 5/5 passing"
 - "File `src/utils/validate.ts` exports `validateInput()` function"
 
@@ -308,18 +353,18 @@ Place doc phase after implementation but before final review.
 
 ## Phase 4.5: PEER REVIEW (Optional)
 
-After writing the spec, optionally run a multi-round peer review with an external model before decomposing into beads. Reviewing at spec level (not beads level) keeps the cost of change minimal — it's just markdown.
+After writing the spec, optionally run a multi-round peer review with an external model before proceeding. Reviewing at spec level keeps the cost of change minimal — it's just markdown.
 
 Ask using AskUserQuestion with header "Peer Review":
 
-"Would you like to run peer review on this spec before beads integration?"
+"Would you like to run peer review on this spec before proceeding?"
 
 Options:
 - **Yes, with Codex (Recommended)** — "Cross-model review using OpenAI reasoning model"
 - **Yes, choose reviewer** — "Detect available reviewer CLIs and choose"
-- **Skip** — "Proceed directly to beads integration"
+- **Skip** — "Proceed directly to next phase"
 
-If "Skip", proceed to Phase 5.
+If "Skip", proceed to Phase 5 (if `--beads`) or Phase 6 (if no `--beads`).
 
 If "Yes, choose reviewer":
 1. Detect available CLIs (run in parallel):
@@ -501,6 +546,8 @@ Based on selection, the reviewer invocation is:
 
 ## Phase 5: BEADS INTEGRATION
 
+**Skip this phase if `--beads` is NOT set. Proceed to Phase 6.**
+
 Create beads tasks from the spec for reliable progress tracking and false-complete prevention.
 
 ### 5.1 Convert Spec to Beads and Add Task IDs
@@ -515,7 +562,7 @@ Run `/beads-spec-to-beads .ralph/spec.md`:
 # 4. Add acceptance criteria from spec
 
 # Record the epic ID for subsequent steps
-EPIC_ID=$(br list --type epic --limit 1 --json | jq -r '.[0].id')
+EPIC_ID=$(br list --type epic --limit 1 --json | jq -r '.issues[0].id')
 echo "Epic ID: $EPIC_ID" >> .ralph/beads-state.txt
 ```
 
@@ -524,8 +571,8 @@ echo "Epic ID: $EPIC_ID" >> .ralph/beads-state.txt
 After beads tasks are created, UPDATE spec.md to add inline task IDs:
 
 ```bash
-# Get mapping of step descriptions to task IDs
-br list --type task --parent $EPIC_ID --format "%(id) %(title)"
+# Get the dependency tree to see task IDs and titles
+br dep tree $EPIC_ID
 ```
 
 Then edit spec.md to add `[TASK-xyz]` to each step:
@@ -535,9 +582,8 @@ After:  `- [ ] **2.1** Implement user validation [TASK-abc123]`
 
 **This step is MANDATORY.** Without inline task IDs:
 - Workers won't know which task to `br show` for criteria
-- Workers won't know which task to `br task complete`
+- Workers won't know which task to `br close`
 - The sync check at completion will fail
-- You will repeat the Phase 12 workflow gap
 
 Evidence:
 - Epic created
@@ -563,7 +609,7 @@ Evidence: `br show $TASK_ID` shows full elaboration with testable acceptance cri
 
 ### 5.3 Validate Acceptance Criteria Exist (AUTOMATED GATE)
 
-**This is a hard gate.** Run `.ralph/validate-ac.sh` to verify AC exists for all tasks:
+**This is a hard gate.** Run `.ralph/validate-ac.sh` to verify AC exists for all tasks (script created in Phase 8.3):
 
 ```bash
 .ralph/validate-ac.sh
@@ -580,7 +626,7 @@ This script checks that EVERY task has non-empty acceptance criteria. If ANY tas
 
 ### 5.4 Validate Beads Quality
 
-Run `/beads-validate-beads epic:$EPIC_ID`:
+Run `/beads-validate-beads epic:$EPIC_ID` (requires the beads-validate-beads skill to be installed):
 
 Checks:
 - Description quality (200+ chars each)
@@ -616,27 +662,33 @@ Before declaring ready, verify:
 2. Acceptance criteria can be mechanically verified
 3. The EXACT reproduction steps are a test item, not assumed covered
 4. Steps are atomic (one thing per session)
-5. **Each spec step has corresponding beads task with acceptance criteria**
+5. Each spec step has specific, testable acceptance criteria inline
+
+**If `--beads` is set:** Also verify that each spec step has a corresponding beads task with acceptance criteria.
 
 ---
 
 ## Phase 7: SPEC REVIEW
 
-Present the spec and beads to the user for review using AskUserQuestion:
+Present the spec to the user for review using AskUserQuestion:
 
-"I've written the spec and created beads tasks. Would you like to review before we proceed?"
+"I've written the spec. Would you like to review before we proceed?"
 
 Options:
 - **Ready to run** - Proceed to infrastructure check and launch
 - **Review spec** - Show me the spec files for review
-- **Review beads** - Show me the beads structure (`br dep tree $EPIC_ID`)
 - **Iterate** - I have changes to make
 
 If "Review spec": Display contents of prompt.md, readme.md, and spec.md, then ask again.
 
+If "Iterate": Ask what changes are needed, make them, and return to this step.
+
+**If `--beads` is set:** Add an additional option:
+- **Review beads** - Show me the beads structure (`br dep tree $EPIC_ID`)
+
 If "Review beads": Run `br dep tree $EPIC_ID` and show task acceptance criteria, then ask again.
 
-If "Iterate": Ask what changes are needed, make them, re-run beads validation, and return to this step.
+If "Iterate" (with beads): Ask what changes are needed, make them, re-run beads validation, and return to this step.
 
 Only proceed to Phase 8 when user selects "Ready to run".
 
@@ -746,7 +798,9 @@ fi
 ```
 Make it executable: `chmod +x .ralph/check-context.sh`
 
-### 8.3 Acceptance Criteria Validation Script (HARD GATE)
+### 8.3 Acceptance Criteria Validation Script (--beads only)
+
+**Skip this section if `--beads` is NOT set.**
 
 Create `.ralph/validate-ac.sh` - this ensures all tasks have acceptance criteria:
 ```bash
@@ -765,13 +819,17 @@ if [[ ! -f .ralph/beads-state.txt ]]; then
 fi
 
 EPIC_ID=$(grep "Epic ID:" .ralph/beads-state.txt | awk '{print $3}')
-TASKS=$(br list --type task --parent "$EPIC_ID" --json | jq -r '.[].id')
+
+# Get child task IDs via dependency relationships
+# --direction up = "what depends on this issue" = children of the epic
+TASKS=$(br dep list "$EPIC_ID" --direction up --json | jq -r '.[].issue_id')
 MISSING=0
 
 for TASK_ID in $TASKS; do
-    AC=$(br show "$TASK_ID" --json | jq -r '.acceptance_criteria // empty')
+    TASK_JSON=$(br show "$TASK_ID" --json)
+    AC=$(echo "$TASK_JSON" | jq -r '.[0].acceptance_criteria // empty')
     AC_TRIMMED=$(echo "$AC" | tr -d '[:space:]')
-    TITLE=$(br show "$TASK_ID" --json | jq -r '.title')
+    TITLE=$(echo "$TASK_JSON" | jq -r '.[0].title')
 
     if [[ -z "$AC_TRIMMED" ]]; then
         echo "MISSING AC: $TASK_ID - $TITLE"
@@ -791,7 +849,9 @@ exit 0
 ```
 Make it executable: `chmod +x .ralph/validate-ac.sh`
 
-### 8.4 Beads Sync Verification Script (CRITICAL)
+### 8.4 Beads Sync Verification Script (--beads only)
+
+**Skip this section if `--beads` is NOT set.**
 
 Create `.ralph/verify-beads-sync.sh` - this enforces beads completion:
 ```bash
@@ -818,8 +878,17 @@ SPEC_DONE=$(grep -c '^\- \[x\]' .ralph/spec.md 2>/dev/null || echo 0)
 SPEC_TOTAL=$(grep -c '^\- \[' .ralph/spec.md 2>/dev/null || echo 0)
 
 # Count completed beads tasks
-BEADS_DONE=$(br list --type task --parent "$EPIC_ID" --status done 2>/dev/null | wc -l || echo 0)
-BEADS_TOTAL=$(br list --type task --parent "$EPIC_ID" 2>/dev/null | wc -l || echo 0)
+# --direction up = "what depends on this issue" = children of the epic
+TASKS=$(br dep list "$EPIC_ID" --direction up --json | jq -r '.[].issue_id')
+BEADS_TOTAL=0
+BEADS_DONE=0
+for TASK_ID in $TASKS; do
+    BEADS_TOTAL=$((BEADS_TOTAL + 1))
+    STATUS=$(br show "$TASK_ID" --json | jq -r '.[0].status')
+    if [[ "$STATUS" == "closed" ]]; then
+        BEADS_DONE=$((BEADS_DONE + 1))
+    fi
+done
 
 echo "=== Beads/Spec Sync Check ==="
 echo "Spec checkboxes: $SPEC_DONE / $SPEC_TOTAL complete"
@@ -839,12 +908,12 @@ if [[ "$BEADS_DONE" -lt "$BEADS_TOTAL" ]]; then
     echo ""
     echo "You marked $SPEC_DONE spec checkboxes but only $BEADS_DONE beads tasks."
     echo ""
-    echo "This means you skipped 'br task complete <TASK_ID>' for some steps."
+    echo "This means you skipped 'br close <TASK_ID>' for some steps."
     echo ""
     echo "FIX: Find incomplete tasks and mark them:"
-    echo "  br list --type task --parent $EPIC_ID --status pending"
+    echo "  br dep tree $EPIC_ID"
     echo ""
-    echo "Then for each: br task complete <TASK_ID>"
+    echo "Then for each open task: br close <TASK_ID>"
     echo ""
     exit 1
 fi
@@ -896,7 +965,6 @@ if [[ -f .ralph/tokens.log ]]; then
 else
     echo "Tokens:   (no tokens.log found)"
 fi
-
 echo ""
 if [[ -f .ralph/context-exits.log ]]; then
     EXIT_COUNT=$(wc -l < .ralph/context-exits.log)
@@ -983,11 +1051,14 @@ Confirm:
 - [ ] .ralph/prompt.md exists
 - [ ] .ralph/spec.md exists
 - [ ] .ralph/launch.sh exists and is executable
+- [ ] Each spec step has specific, testable acceptance criteria inline
+- [ ] **Core context ≤ 5000 tokens**
+
+**If `--beads` is set**, also confirm:
 - [ ] .ralph/validate-ac.sh exists and is executable
 - [ ] .ralph/verify-beads-sync.sh exists and is executable
 - [ ] All spec steps have inline `[TASK-xyz]` references
 - [ ] **validate-ac.sh passes** (all tasks have acceptance criteria)
-- [ ] **Core context ≤ 5000 tokens**
 
 Report: "Ready for ralph" with token budget and launch command:
 
@@ -1033,15 +1104,18 @@ Delete `.ralph/setup-state.json` - no longer needed once loop is ready.
 - Every bug reproduction step becomes an explicit test item
 - "Verify it works" is not enough - specify EXACT steps
 - Human review after loop completion is mandatory
+- Acceptance criteria must be specific and testable
+
+**If `--beads` is set:** Additional false-complete prevention:
 - **Beads acceptance criteria provide second verification layer**
 - **Spec checkbox AND beads task must BOTH be marked complete**
+- **Dual tracking**: Spec.md checkboxes AND beads tasks must stay synchronized
 
 **Verification Guardrails:**
-1. **Dual tracking**: Spec.md checkboxes AND beads tasks must stay synchronized
-2. **Acceptance criteria**: Every step must have testable, specific criteria
-3. **Evidence required**: "It works" is never sufficient - show command output, file contents, test results
-4. **Red flag detection**: Define what FALSE completion looks like for each step
-5. **Review phases**: Every phase ends with aggregated verification
+1. **Acceptance criteria**: Every step must have testable, specific criteria
+2. **Evidence required**: "It works" is never sufficient - show command output, file contents, test results
+3. **Red flag detection**: Define what FALSE completion looks like for each step
+4. **Review phases**: Every phase ends with aggregated verification
 
 **When in doubt, WAITING not COMPLETE.** If any acceptance criterion cannot be mechanically verified:
 - Create `.ralph/WAITING` file explaining what human verification is needed
