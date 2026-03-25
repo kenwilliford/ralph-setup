@@ -21,7 +21,7 @@ Ralph is an **external bash loop** that spawns fresh Claude Code sessions to wor
 │   │  commit+exit │   │  commit+exit │   │ exit      │   │
 │   └──────────────┘   └──────────────┘   └──────────┘   │
 │                                                          │
-│   State persists in: git, .ralph/spec.md, beads          │
+│   State persists in: git, .ralph/spec.md                 │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -52,28 +52,42 @@ The `/ralph-setup` command generates this prompt tailored to your project.
 
 ### 2. The Spec (`.ralph/spec.md`)
 
-A minimal index of work to be done. Each step is a checkbox:
+A minimal index of work to be done. Each step is a checkbox with acceptance criteria:
 
+```markdown
+- [ ] **1.1** Create database schema
+  - AC: migration file exists at db/migrations/
+  - AC: schema matches ERD from spec
+- [ ] **1.2** Add validation logic
+  - AC: rejects invalid input with 400 status
+  - AC: unit tests pass
+- [ ] **1.R** Review: tests pass, no bugs
+  - AC: `npm test` exits 0
+  - AC: no obvious bugs in code review
+```
+
+The spec stays under ~4000 tokens to preserve context budget.
+
+**With `--beads`:** Spec steps use a minimal format with task ID references instead of inline acceptance criteria:
 ```markdown
 - [ ] **1.1** Create database schema [TASK-abc]
 - [ ] **1.2** Add validation logic [TASK-def]
 - [ ] **1.R** Review: tests pass, no bugs [TASK-ghi]
 ```
-
-The spec stays under ~4000 tokens to preserve context budget. Detailed acceptance criteria live in beads tasks, referenced by `[TASK-xyz]` IDs.
+Detailed criteria live in beads tasks, fetched on-demand via `br show TASK-xyz`.
 
 ### 3. The Readme (`.ralph/readme.md`)
 
 A lookup table that points to reference docs. It "teases the latent space" — giving Claude enough context to know what docs exist without loading them all into context.
 
-### 4. Beads Tasks (`br`)
+### 4. Beads Tasks (optional, with `--beads`)
 
-Each spec step maps to a beads task containing:
+When using the `--beads` flag, each spec step maps to a [beads](https://github.com/kenwilliford/beads_rust) task containing:
 - Background and context
 - Detailed acceptance criteria
 - Verification commands
 
-Sessions run `br show TASK-xyz` on-demand to get criteria for the current step. This keeps the spec small while maintaining rigorous verification.
+Sessions run `br show TASK-xyz` on-demand to get criteria for the current step. This keeps the spec small while maintaining rigorous verification. See the `--beads` section below for the full verification architecture.
 
 ### 5. The Stop Hook
 
@@ -102,21 +116,31 @@ The core context (files read every session) must stay under ~5000 tokens:
 
 | Component | Budget | Purpose |
 |-----------|--------|---------|
-| `prompt.md` | ~450 tokens | Standing instructions |
+| `prompt.md` | ~500 tokens | Standing instructions |
 | `readme.md` | ~550 tokens | Lookup table |
-| `spec.md` | ~4000 tokens | Work index |
+| `spec.md` | ~3950 tokens | Work index |
 | **Total** | **~5000 tokens** | **2.5% of 200K window** |
 
 This leaves 97.5% of the context window for actual work — reading code, reasoning, writing implementations.
 
 ## Verification Architecture
 
-Ralph uses **dual tracking** to prevent false completion:
+### Default Mode
+
+Each step requires:
+1. Read acceptance criteria from spec step
+2. Verify each criterion with evidence (command output, file contents, test results)
+3. Mark spec checkbox `[x]`
+4. Log evidence in progress log
+
+### With `--beads`: Dual Tracking
+
+When beads is enabled, ralph adds a second verification layer:
 
 ```
 spec.md checkboxes  ←→  beads task status
        ↓                       ↓
-  [x] Step 1.1          br task complete TASK-abc
+  [x] Step 1.1          br close TASK-abc
        ↓                       ↓
   verify-beads-sync.sh checks both match
 ```
@@ -125,7 +149,7 @@ Every step requires:
 1. `br show TASK-xyz` before starting (get acceptance criteria)
 2. Verify each criterion with evidence
 3. Mark spec checkbox `[x]`
-4. Mark beads task complete
+4. Close beads task: `br close TASK-xyz`
 5. Log evidence in progress log
 
 The sync verification script (`verify-beads-sync.sh`) blocks completion until both systems agree.
@@ -142,20 +166,20 @@ The sync verification script (`verify-beads-sync.sh`) blocks completion until bo
       │     ├── External reviewer (codex/gemini) ↔ Claude iterate
       │     ├── Produces .ralph/reviews/ audit trail
       │     └── Revised spec replaces spec.md
-      ├── Create beads epic + tasks (/beads-spec-to-beads)
-      ├── Elaborate tasks (/beads-task-elaboration)
-      ├── Validate (/beads-validate-beads)
-      └── Install stop hook
+      ├── [--beads only] Create beads epic + tasks
+      ├── [--beads only] Elaborate tasks with acceptance criteria
+      ├── [--beads only] Validate beads quality
+      └── Install stop hook + launch script
               │
               v
         ralph loop (autonomous)
               │
               ├── Session reads prompt.md
               ├── Reads spec.md → finds first [ ] step
-              ├── br show TASK-xyz → gets criteria
+              ├── Gets acceptance criteria (from spec, or br show with --beads)
               ├── Does the work
-              ├── Verifies criteria
-              ├── Marks spec [x] + br task complete
+              ├── Verifies criteria with evidence
+              ├── Marks spec [x] (+ br close with --beads)
               ├── Commits + pushes
               └── Exits → loop restarts
                       │

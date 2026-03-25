@@ -180,7 +180,7 @@ The spec document is not just a plan — it's a constraint system:
 2. **Step atomicity**: One step per session prevents scope creep
 3. **Evidence requirements**: Each step must show proof of completion
 4. **Review gates**: Mandatory review phases catch accumulated errors
-5. **Dual tracking**: Spec checkboxes AND beads tasks must agree
+5. **Dual tracking** (with `--beads`): Spec checkboxes AND beads tasks must agree
 
 ### Self-Updating Plans
 
@@ -223,7 +223,7 @@ The loop updates its own spec:
 | Loop execution | Internal (same session) | External bash loop spawning sessions |
 | Context per iteration | Same (continuing) | Fresh (new window each time) |
 | Context injection | Accumulates organically | `cat prompt.md \| claude` pipes in |
-| State persistence | In context memory | On disk (specs, git, beads) |
+| State persistence | In context memory | On disk (specs, git) |
 | Compaction | Auto-compacts when full | Never (fresh context each iteration) |
 | Task selection | Continues where left off | Reads spec, picks first incomplete |
 | Self-updating | Manual | Yes (updates spec checkboxes) |
