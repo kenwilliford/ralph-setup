@@ -712,7 +712,7 @@ If missing, read `.claude/settings.json` (or create if none), and ensure it has:
     "Stop": [{
       "hooks": [{
         "type": "command",
-        "command": ".claude/hooks/exit-after-task.sh"
+        "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/exit-after-task.sh"
       }]
     }]
   }
@@ -726,6 +726,10 @@ Then create `.claude/hooks/exit-after-task.sh` if missing:
 #!/bin/bash
 # Ralph Loop stop hook - conditional on RALPH_LOOP=1
 if [[ "$RALPH_LOOP" != "1" ]]; then exit 0; fi
+
+# Resolve project root regardless of the agent's cwd — steps that cd to a venv
+# in another worktree would otherwise break the relative .ralph/ refs below.
+cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || true
 
 # --- Token logging ---
 if [[ -f .ralph/started.txt ]]; then

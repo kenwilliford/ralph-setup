@@ -12,7 +12,9 @@
 # 2. chmod +x .claude/hooks/exit-after-task.sh
 # 3. Add to .claude/settings.json:
 #    "hooks": {
-#      "Stop": [{ "hooks": [{ "type": "command", "command": ".claude/hooks/exit-after-task.sh" }] }]
+#      "Stop": [{ "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/exit-after-task.sh" }] }]
+#    ($CLAUDE_PROJECT_DIR — not a relative path — so the hook resolves even when
+#     a loop step cd's outside the worktree, e.g. to a venv in the main worktree.)
 #    }
 
 # Only kill Claude if we're in loop mode
